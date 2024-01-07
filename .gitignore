@@ -1,0 +1,41 @@
+# Compiled files
+bin/
+obj/
+
+# Packages
+*.lock
+packages/
+
+# User-specific files
+*.user
+*.suo
+*.userprefs
+*.vscode/
+.vs/
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+
+# Visual Studio files
+*.sln
+*.csproj.user
+*.editorconfig
+*.mdproj
+*.ldproj
+*.shproj
+*.cd
+*.njsproj
+*.vcxproj
+*.pdb
+*.ipch/
+*.iobj/
+
+# macOS specific files
+.DS_Store
+
+# Windows specific files
+Thumbs.db
