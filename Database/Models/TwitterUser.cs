@@ -23,5 +23,7 @@ namespace TwitterApi.Models
         public int FollowingCount { get; set; }
 
         public int TweetsCount { get; set; }
+
+        public ICollection<Tweet> Tweets { get; set; } = null!;
     }
 }

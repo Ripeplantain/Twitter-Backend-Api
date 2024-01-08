@@ -19,6 +19,11 @@ namespace TwitterApi.Database
             modelBuilder.Entity<IdentityUserRole<string>>().ToTable("UserRoles");
             modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("UserClaims");
 
+            modelBuilder.Entity<Tweet>()
+                .HasOne(t => t.User)
+                .WithMany(u => u.Tweets)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
