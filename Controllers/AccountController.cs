@@ -6,11 +6,12 @@ using TwitterApi.Database;
 using System.Linq.Expressions;
 using System.ComponentModel.DataAnnotations;
 // using TwitterApi.Attributes;
-using System.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Diagnostics;
+using System.Text;
 
 
 
@@ -61,6 +62,7 @@ namespace TwitterApi.Controllers
                             $"User {input.username} has been registered successfully."
 
                         );
+                        await _userManager.AddToRoleAsync(newUser, "User");
                         return StatusCode(201,
                             new
                             {
@@ -100,9 +102,69 @@ namespace TwitterApi.Controllers
 
         [HttpPost]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult> Login()
+        public async Task<ActionResult> Login(LoginDTO input)
         {
-            throw new NotImplementedException();
+            try {
+                if (ModelState.IsValid)
+                {
+                    var user = await _userManager.FindByNameAsync(input.username);
+                    if (user == null
+                        || !await _userManager.CheckPasswordAsync(user, input.password))
+                    {
+                        return StatusCode(400,
+                            new
+                            {
+                                message = "User has failed to login.",
+                                errors = "Invalid username or password."
+                            }
+                        );
+                    } else {
+                        var signingCredentials = new SigningCredentials(
+                            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? string.Empty)),
+                            SecurityAlgorithms.HmacSha256
+                        );
+                        var claims = new List<Claim>();
+                        claims.Add(new Claim(ClaimTypes.Name, user.UserName));
+                        claims.AddRange((await _userManager.GetRolesAsync(user)).Select(role => new Claim(ClaimTypes.Role, role)));
+
+                        var jwtObject = new JwtSecurityToken(
+                            issuer: _configuration["Jwt:Issuer"],
+                            audience: _configuration["Jwt:Audience"],
+                            claims: claims,
+                            expires: DateTime.Now.AddMinutes(30),
+                            signingCredentials: signingCredentials
+                        );
+
+                        var jwtString = new JwtSecurityTokenHandler().WriteToken(jwtObject);
+
+                        return StatusCode(200,
+                            new
+                            {
+                                message = "User has been logged in successfully.",
+                                token = jwtString
+                            }
+                        );
+                    }
+                } else {
+                    var details = new ValidationProblemDetails(ModelState)
+                    {
+                        Instance = HttpContext.Request.Path,
+                        Status = StatusCodes.Status400BadRequest,
+                        Type = "https://httpstatuses.com/400",
+                        Detail = "Please refer to the errors property for additional details."
+                    };
+                    return StatusCode(400, details);
+                }
+            } catch (Exception e)
+            {
+                return StatusCode(500,
+                    new
+                    {
+                        message = "User has failed to login.",
+                        errors = e.Message
+                    }
+                );
+            }
         }
     }
 }
