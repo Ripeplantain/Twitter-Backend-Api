@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using TwitterApi.Models;
 
 
 namespace TwitterApi.Database
 {
-    public class DataContext : DbContext
+    public class DataContext : IdentityDbContext<TwitterUser>
     {
         public DataContext(DbContextOptions<DataContext> options) : base(options) { }
 
@@ -12,10 +14,11 @@ namespace TwitterApi.Database
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.UserProfile)
-                .WithOne(up => up.User)
-                .HasForeignKey<UserProfile>(up => up.UserId);
+            modelBuilder.Entity<TwitterUser>().ToTable("Users");
+            modelBuilder.Entity<IdentityRole<string>>().ToTable("Roles");
+            modelBuilder.Entity<IdentityUserRole<string>>().ToTable("UserRoles");
+            modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("UserClaims");
+
         }
     }
 }
