@@ -5,7 +5,6 @@ using TwitterApi.Models;
 using TwitterApi.Database;
 using System.Linq.Expressions;
 using System.ComponentModel.DataAnnotations;
-// using TwitterApi.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;

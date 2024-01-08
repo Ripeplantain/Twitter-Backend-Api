@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-
+using System.ComponentModel.DataAnnotations.Schema;
 
 
 namespace TwitterApi.Models
 {
+    [Table("Tweets")]
     public class Tweet
     {
         [Key]
