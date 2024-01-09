@@ -50,11 +50,24 @@ namespace TwitterApi.Database
                 .WithMany(t => t.Likes)
                 .HasForeignKey(l => l.TweetId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Retweet>()
+                .HasOne(r => r.Retweeter)
+                .WithMany(u => u.Retweets)
+                .HasForeignKey(r => r.RetweeterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<Retweet>()
+                .HasOne(r => r.Tweet)
+                .WithMany(t => t.Retweets)
+                .HasForeignKey(r => r.TweetId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Tweet> Tweets { get; set; } = null!;
         public DbSet<TwitterUser> Users { get; set; } = null!;
         public DbSet<Follow> Follows { get; set; } = null!;
         public DbSet<Like> Likes { get; set; } = null!;
+        public DbSet<Retweet> Retweets { get; set; } = null!;
     }
 }

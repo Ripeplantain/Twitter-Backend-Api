@@ -36,5 +36,8 @@ namespace TwitterApi.Models
 
         [JsonIgnore]
         public ICollection<Like> Likes { get; set; } = null!;
+
+        [JsonIgnore]
+        public ICollection<Retweet> Retweets { get; set; } = null!;
     }
 }

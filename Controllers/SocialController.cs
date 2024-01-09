@@ -178,5 +178,59 @@ namespace TwitterApi.Controllers
                 return StatusCode(500, "Error liking tweet");
             }
         }
+
+        [HttpPost]
+        public async Task<IActionResult> Retweet(RetweetRequestDTO input)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try 
+            {
+                var user = await _userManager.FindByNameAsync(User.Identity.Name);
+                var tweet = await _context.Tweets
+                    .FirstOrDefaultAsync(t => t.Id == input.tweetId);
+
+                if (user == null || tweet == null)
+                {
+                    return NotFound();
+                }
+
+                var existingRetweet = await _context.Retweets
+                    .FirstOrDefaultAsync(r => r.TweetId == tweet.Id && r.RetweeterId == user.Id);
+
+                if (existingRetweet != null)
+                {
+                    return BadRequest("Already retweeted tweet");
+                }
+
+                var newRetweet = new Retweet
+                {
+                    TweetId = tweet.Id,
+                    Caption = input.caption,
+                    RetweeterId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    Tweet = tweet,
+                    Retweeter = user
+                };
+
+                await _context.Retweets.AddAsync(newRetweet);
+                await _context.SaveChangesAsync();
+
+                tweet.RetweetsCount++;
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                return StatusCode(201, new 
+                {
+                    Message = $"Tweet retweeted successfully"
+                });
+
+            } 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retweeting tweet");
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Error retweeting tweet");
+            }
+        }
     }
 }
