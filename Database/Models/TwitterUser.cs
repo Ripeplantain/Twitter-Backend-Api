@@ -27,5 +27,11 @@ namespace TwitterApi.Models
 
         [JsonIgnore]
         public ICollection<Tweet> Tweets { get; set; } = null!;
+
+        [JsonIgnore]
+        public ICollection<Follow> Followers { get; set; } = null!;
+
+        [JsonIgnore]
+        public ICollection<Follow> Following { get; set; } = null!;
     }
 }

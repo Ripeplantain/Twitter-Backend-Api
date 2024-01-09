@@ -26,9 +26,22 @@ namespace TwitterApi.Database
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Tweet>().ToTable("Tweets");
+
+            modelBuilder.Entity<Follow>()
+                .HasOne(f => f.Follower)
+                .WithMany(u => u.Followers)
+                .HasForeignKey(f => f.FollowerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Follow>()
+                .HasOne(f => f.Following)
+                .WithMany(u => u.Following)
+                .HasForeignKey(f => f.FollowingId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Tweet> Tweets { get; set; } = null!;
         public DbSet<TwitterUser> Users { get; set; } = null!;
+        public DbSet<Follow> Follows { get; set; } = null!;
     }
 }
