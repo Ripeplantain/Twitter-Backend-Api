@@ -7,7 +7,6 @@ using TwitterApi.Database;
 using TwitterApi.DTO;
 
 
-
 namespace TwitterApi.Controllers
 {
     [Route("[controller]/[action]")]
@@ -28,12 +27,17 @@ namespace TwitterApi.Controllers
 
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets()
+        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets(
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 50
+        )
         {
             try {
                 var tweets = await _context.Tweets
                     .Include(t => t.User)
                     .OrderByDescending(t => t.CreatedAt)
+                    .Skip(pageIndex * pageSize)
+                    .Take(pageSize)
                     .ToListAsync();
                 return Ok(new ResponseDTO<List<Tweet>> {
                     Message = "Tweets retrieved successfully",
