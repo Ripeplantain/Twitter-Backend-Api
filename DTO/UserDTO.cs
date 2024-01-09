@@ -1,15 +1,22 @@
-using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
-using Newtonsoft.Json;
 
 
-namespace TwitterApi.Models
+namespace TwitterApi.DTO
 {
-    public class TwitterUser : IdentityUser
+    public class UserDTO
     {
+        [Required]
+        public string Id { get; set; }
+
         [Required]
         [MaxLength(50)]
         public string FullName { get; set; } = null!;
+
+        public string Email { get; set; } = null!;
+
+        [Required]
+        [MaxLength(50)]
+        public string UserName { get; set; } = null!;
 
         [MaxLength(255)]
         public string Bio { get; set; } = null!;
@@ -25,7 +32,6 @@ namespace TwitterApi.Models
 
         public int TweetsCount { get; set; }
 
-        [JsonIgnore]
-        public ICollection<Tweet> Tweets { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
     }
 }

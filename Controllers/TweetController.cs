@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
 using TwitterApi.Models;
 using TwitterApi.Database;
 using TwitterApi.DTO;
+using System.Security.Claims;
 
 
 namespace TwitterApi.Controllers
@@ -17,36 +20,115 @@ namespace TwitterApi.Controllers
         private readonly DataContext _context;
         private readonly ILogger<TweetController> _logger;
         private readonly UserManager<TwitterUser> _userManager;
+        private readonly IDistributedCache _cache;
 
-        public TweetController(DataContext context, ILogger<TweetController> logger, UserManager<TwitterUser> userManager)
+        public TweetController(
+            DataContext context, 
+            ILogger<TweetController> logger, 
+            UserManager<TwitterUser> userManager,
+            IDistributedCache cache
+        )
         {
             _context = context;
             _logger = logger;
             _userManager = userManager;
+            _cache = cache;
         }
 
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets(
             [FromQuery] int pageIndex = 0,
-            [FromQuery] int pageSize = 50
+            [FromQuery] int pageSize = 25,
+            CancellationToken cancellationToken = default
         )
         {
-            try {
-                var tweets = await _context.Tweets
-                    .Include(t => t.User)
-                    .OrderByDescending(t => t.CreatedAt)
-                    .Skip(pageIndex * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-                return Ok(new ResponseDTO<List<Tweet>> {
-                    Message = "Tweets retrieved successfully",
-                    Count = tweets.Count,
-                    Data = tweets
+            try
+            {
+                var cacheKey = $"tweets-{pageIndex}-{pageSize}";
+                var cachedResponse = await _cache.GetStringAsync(cacheKey, cancellationToken);
+                if (string.IsNullOrEmpty(cachedResponse))
+                {
+                    var tweets = await _context.Tweets
+                        .Include(t => t.User)
+                        .OrderByDescending(t => t.CreatedAt)
+                        .Skip(pageIndex * pageSize)
+                        .Take(pageSize)
+                        .ToListAsync();
+
+                    if (tweets.Count == 0)
+                    {
+                        return NotFound(new ResponseDTO<List<Tweet>>
+                        {
+                            Message = "No tweets found",
+                            Count = 0,
+                            Tweets = new List<TweetDTO>()
+                        });
+                    }
+                    var settings = new JsonSerializerSettings
+                    {
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                        MaxDepth = 1
+                    };
+                    await _cache.SetStringAsync(
+                        cacheKey,
+                        JsonConvert.SerializeObject(tweets),
+                        new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3)
+                        },
+                        cancellationToken
+                    );
+
+                    return Ok(new ResponseDTO<List<Tweet>>
+                    {
+                        Message = "Tweets retrieved successfully",
+                        Count = tweets.Count,
+                        Tweets = tweets.Select(t => new TweetDTO
+                        {
+                            Id = t.Id,
+                            Content = t.Content,
+                            CreatedAt = t.CreatedAt,
+                            User = new UserDTO
+                            {
+                                Id = t.User.Id,
+                                UserName = t.User.UserName,
+                                Email = t.User.Email,
+                                FullName = t.User.FullName
+                            }
+                        }).ToList(),
+                    });
+                } else {
+                    var tweets = JsonConvert.DeserializeObject<List<Tweet>>(cachedResponse);
+                    return Ok(new ResponseDTO<List<Tweet>>
+                    {
+                        Message = "Tweets retrieved successfully",
+                        Count = tweets.Count,
+                        Tweets = tweets.Select(t => new TweetDTO
+                        {
+                            Id = t.Id,
+                            Content = t.Content,
+                            CreatedAt = t.CreatedAt,
+                            User = new UserDTO
+                            {
+                                Id = t.User.Id,
+                                UserName = t.User.UserName,
+                                Email = t.User.Email,
+                                FullName = t.User.FullName
+                            }
+                        }).ToList(),
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error occurred while processing the request");
+                return StatusCode(500, new ResponseDTO<List<Tweet>>
+                {
+                    Message = "An error occurred while retrieving tweets",
+                    Count = 0,
+                    Tweets = new List<TweetDTO>()
                 });
-            } catch (Exception e) {
-                _logger.LogError(e.Message);
-                return StatusCode(500);
             }
         }
 
@@ -64,7 +146,17 @@ namespace TwitterApi.Controllers
                 return Ok(new ResponseDTO<List<Tweet>> {
                     Message = "Tweets retrieved successfully",
                     Count = user.Tweets.Count,
-                    Data = user.Tweets.ToList()
+                    Tweets = user.Tweets.Select(t => new TweetDTO {
+                        Id = t.Id,
+                        Content = t.Content,
+                        User = new UserDTO {
+                            Id = t.User.Id,
+                            UserName = t.User.UserName,
+                            Email = t.User.Email,
+                            FullName = t.User.FullName                        
+                        },
+                        CreatedAt = t.CreatedAt
+                    }).ToList(),
                 });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
@@ -86,7 +178,19 @@ namespace TwitterApi.Controllers
                 return Ok(new ResponseDTO<Tweet> {
                     Message = "Tweet retrieved successfully",
                     Count = 1,
-                    Data = tweet
+                    Tweets = new List<TweetDTO> {
+                        new TweetDTO {
+                            Id = tweet.Id,
+                            Content = tweet.Content,
+                            User = new UserDTO {
+                                Id = tweet.User.Id,
+                                UserName = tweet.User.UserName,
+                                Email = tweet.User.Email,
+                                FullName = tweet.User.FullName
+                            },
+                            CreatedAt = tweet.CreatedAt
+                        }
+                    },
                 });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
@@ -98,13 +202,21 @@ namespace TwitterApi.Controllers
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<ActionResult> CreateTweet(TweetDTO input)
         {
-            try {
-                if (ModelState.IsValid) {
+            try
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+
+                if (ModelState.IsValid)
+                {
                     var user = await _userManager.FindByNameAsync(User.Identity.Name);
-                    if (user == null) {
+
+                    if (user == null)
+                    {
                         return Unauthorized("User not found");
                     }
-                    var newTweet = new Tweet {
+
+                    var newTweet = new Tweet
+                    {
                         Content = input.Content,
                         LikesCount = 0,
                         RetweetsCount = 0,
@@ -112,19 +224,31 @@ namespace TwitterApi.Controllers
                         UserId = user.Id,
                         User = user
                     };
+
                     await _context.Tweets.AddAsync(newTweet);
                     await _context.SaveChangesAsync();
-                    return StatusCode(201, new {
+
+                    // Increment the TweetsCount for the user
+                    user.TweetsCount++;
+                    await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+                    return StatusCode(201, new
+                    {
                         Message = "Tweet created successfully",
                     });
-                } else {
-                    return BadRequest(ModelState);
                 }
-            } catch (Exception e) {
+
+                await transaction.RollbackAsync();
+                return BadRequest(ModelState);
+            }
+            catch (Exception e)
+            {
                 _logger.LogError(e.Message);
                 return StatusCode(500);
             }
         }
+
 
         [HttpPut("{id}")]
         [ResponseCache(CacheProfileName = "NoCache")]

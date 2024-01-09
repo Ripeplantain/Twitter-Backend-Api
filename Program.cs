@@ -87,6 +87,11 @@ builder.Services.AddAuthentication(x => {
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddStackExchangeRedisCache(options => {
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "master";
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(

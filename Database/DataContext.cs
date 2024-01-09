@@ -29,5 +29,6 @@ namespace TwitterApi.Database
         }
 
         public DbSet<Tweet> Tweets { get; set; } = null!;
+        public DbSet<TwitterUser> Users { get; set; } = null!;
     }
 }
