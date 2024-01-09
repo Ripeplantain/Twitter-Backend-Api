@@ -12,15 +12,15 @@ namespace TwitterApi.Controllers
     [Route("[controller]/[action]")]
     [ApiController]
     [Authorize]
-    public class FollowController : ControllerBase
+    public class SocialController : ControllerBase
     {
         private readonly UserManager<TwitterUser> _userManager;
-        private readonly ILogger<FollowController> _logger;
+        private readonly ILogger<SocialController> _logger;
         private readonly DataContext _context;
 
-        public FollowController(
+        public SocialController(
             UserManager<TwitterUser> userManager, 
-            ILogger<FollowController> logger,
+            ILogger<SocialController> logger,
             DataContext context)
         {
             _userManager = userManager;
