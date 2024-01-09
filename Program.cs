@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Swagger;
 using System.Text;
+using System.Text.Json.Serialization;
 using TwitterApi.Database;
 using TwitterApi.Models;
 
@@ -43,7 +44,9 @@ builder.Services.AddSwaggerGen(options => {
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options => {
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+});
 
 builder.Services.AddMvc(options => {
     options.CacheProfiles.Add("NoCache", new CacheProfile {
@@ -80,11 +83,6 @@ builder.Services.AddAuthentication(x => {
     };
 });
 
-// builder.Services.AddAuthorization(options =>
-// {
-//     options.AddPolicy("Admin", policy => policy.RequireClaim("role", "admin"));
-//     options.AddPolicy("User", policy => policy.RequireClaim("role", "user"));
-// });
 
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

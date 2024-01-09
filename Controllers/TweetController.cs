@@ -28,14 +28,18 @@ namespace TwitterApi.Controllers
 
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult> GetTweets()
+        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets()
         {
             try {
                 var tweets = await _context.Tweets
                     .Include(t => t.User)
                     .OrderByDescending(t => t.CreatedAt)
                     .ToListAsync();
-                return Ok(tweets);
+                return Ok(new ResponseDTO<List<Tweet>> {
+                    Message = "Tweets retrieved successfully",
+                    Count = tweets.Count,
+                    Data = tweets
+                });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
                 return StatusCode(500);
@@ -44,7 +48,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet("{username}/tweets")]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult> GetUserTweets(string username)
+        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetUserTweets(string username)
         {
             try {
                 var user = await _context.Users
@@ -53,7 +57,11 @@ namespace TwitterApi.Controllers
                 if (user == null) {
                     return NotFound();
                 }
-                return Ok(user.Tweets);
+                return Ok(new ResponseDTO<List<Tweet>> {
+                    Message = "Tweets retrieved successfully",
+                    Count = user.Tweets.Count,
+                    Data = user.Tweets.ToList()
+                });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
                 return StatusCode(500);
@@ -62,7 +70,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult> GetTweet(int id)
+        public async Task<ActionResult<ResponseDTO<Tweet>>> GetTweet(int id)
         {
             try {
                 var tweet = await _context.Tweets
@@ -71,7 +79,11 @@ namespace TwitterApi.Controllers
                 if (tweet == null) {
                     return NotFound();
                 }
-                return Ok(tweet);
+                return Ok(new ResponseDTO<Tweet> {
+                    Message = "Tweet retrieved successfully",
+                    Count = 1,
+                    Data = tweet
+                });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
                 return StatusCode(500);
@@ -84,22 +96,23 @@ namespace TwitterApi.Controllers
         {
             try {
                 if (ModelState.IsValid) {
-                    var user = await _userManager.GetUserAsync(User);
-                    if (input != null && user != null) {
-                        var newTweet = new Tweet {
+                    var user = await _userManager.FindByNameAsync(User.Identity.Name);
+                    if (user == null) {
+                        return Unauthorized("User not found");
+                    }
+                    var newTweet = new Tweet {
                         Content = input.Content,
                         LikesCount = 0,
                         RetweetsCount = 0,
-                        CreatedAt = DateTime.Now,
+                        CreatedAt = DateTime.UtcNow,
                         UserId = user.Id,
                         User = user
-                        };
+                    };
                     await _context.Tweets.AddAsync(newTweet);
                     await _context.SaveChangesAsync();
-                    return StatusCode(201, newTweet);
-                    } else {
-                        return BadRequest();
-                    }
+                    return StatusCode(201, new {
+                        Message = "Tweet created successfully",
+                    });
                 } else {
                     return BadRequest(ModelState);
                 }
@@ -142,7 +155,9 @@ namespace TwitterApi.Controllers
                 }
                 _context.Tweets.Remove(tweet);
                 await _context.SaveChangesAsync();
-                return Ok();
+                return Ok(new {
+                    Message = "Tweet deleted successfully"
+                });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
                 return StatusCode(500);
