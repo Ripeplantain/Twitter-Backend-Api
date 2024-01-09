@@ -33,5 +33,8 @@ namespace TwitterApi.Models
 
         [JsonIgnore]
         public ICollection<Follow> Following { get; set; } = null!;
+
+        [JsonIgnore]
+        public ICollection<Like> Likes { get; set; } = null!;
     }
 }

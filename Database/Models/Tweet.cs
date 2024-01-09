@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Newtonsoft.Json;
 
 
 namespace TwitterApi.Models
@@ -27,5 +28,8 @@ namespace TwitterApi.Models
 
         [Required]
         public TwitterUser User { get; set; } = null!;
+
+        [JsonIgnore]
+        public ICollection<Like> Likes { get; set; } = null!;
     }
 }

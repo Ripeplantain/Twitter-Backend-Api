@@ -126,5 +126,57 @@ namespace TwitterApi.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> LikeTweet(LikeRequestDTO input)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try 
+            {
+                var user = await _userManager.FindByNameAsync(User.Identity.Name);
+                var tweet = await _context.Tweets
+                    .FirstOrDefaultAsync(t => t.Id == input.tweetId);
+
+                if (user == null || tweet == null)
+                {
+                    return NotFound();
+                }
+
+                var existingLike = await _context.Likes
+                    .FirstOrDefaultAsync(l => l.TweetId == tweet.Id && l.UserId == user.Id);
+
+                if (existingLike != null)
+                {
+                    return BadRequest("Already liked tweet");
+                }
+
+                var newLike = new Like
+                {
+                    TweetId = tweet.Id,
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    Tweet = tweet,
+                    User = user
+                };
+
+                await _context.Likes.AddAsync(newLike);
+                await _context.SaveChangesAsync();
+
+                tweet.LikesCount++;
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                return StatusCode(201, new 
+                {
+                    Message = $"Tweet liked successfully"
+                });
+
+            } 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error liking tweet");
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Error liking tweet");
+            }
+        }
     }
 }
