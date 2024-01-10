@@ -122,8 +122,10 @@ namespace TwitterApi.Controllers
                             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? string.Empty)),
                             SecurityAlgorithms.HmacSha256
                         );
-                        var claims = new List<Claim>();
-                        claims.Add(new Claim(ClaimTypes.Name, user.UserName));
+                        var claims = new List<Claim>
+                        {
+                            new(ClaimTypes.Name, user.UserName ?? string.Empty)
+                        };
                         claims.AddRange((await _userManager.GetRolesAsync(user)).Select(role => new Claim(ClaimTypes.Role, role)));
 
                         var jwtObject = new JwtSecurityToken(

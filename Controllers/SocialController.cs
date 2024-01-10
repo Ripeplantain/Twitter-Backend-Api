@@ -34,6 +34,10 @@ namespace TwitterApi.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try 
             {
+                if (User.Identity == null || User.Identity.Name == null)
+                {
+                    return Unauthorized();
+                }
                 var user = await _userManager.FindByNameAsync(User.Identity.Name);
                 var userToFollow = await _userManager.FindByIdAsync(input.userId);
 
@@ -88,6 +92,10 @@ namespace TwitterApi.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try 
             {
+                if (User.Identity == null || User.Identity.Name == null)
+                {
+                    return Unauthorized();
+                }
                 var user = await _userManager.FindByNameAsync(User.Identity.Name);
                 var userToUnfollow = await _userManager.FindByIdAsync(input.userId);
 
@@ -132,6 +140,10 @@ namespace TwitterApi.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try 
             {
+                if (User.Identity == null || User.Identity.Name == null)
+                {
+                    return Unauthorized();
+                }
                 var user = await _userManager.FindByNameAsync(User.Identity.Name);
                 var tweet = await _context.Tweets
                     .FirstOrDefaultAsync(t => t.Id == input.tweetId);
@@ -185,6 +197,10 @@ namespace TwitterApi.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try 
             {
+                if (User.Identity == null || User.Identity.Name == null)
+                {
+                    return Unauthorized();
+                }
                 var user = await _userManager.FindByNameAsync(User.Identity.Name);
                 var tweet = await _context.Tweets
                     .FirstOrDefaultAsync(t => t.Id == input.tweetId);

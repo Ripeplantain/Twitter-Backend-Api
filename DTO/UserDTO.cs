@@ -6,7 +6,7 @@ namespace TwitterApi.DTO
     public class UserDTO
     {
         [Required]
-        public string Id { get; set; }
+        public string Id { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(50)]

@@ -6,10 +6,8 @@ using TwitterApi.Models;
 
 namespace TwitterApi.Database
 {
-    public class DataContext : IdentityDbContext<TwitterUser>
+    public class DataContext(DbContextOptions<DataContext> options) : IdentityDbContext<TwitterUser>(options)
     {
-        public DataContext(DbContextOptions<DataContext> options) : base(options) { }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -62,12 +60,48 @@ namespace TwitterApi.Database
                 .WithMany(t => t.Retweets)
                 .HasForeignKey(r => r.TweetId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserChatroom>()
+                .HasKey(uc => new { uc.UserId, uc.ChatroomId });
+            
+            modelBuilder.Entity<UserChatroom>()
+                .HasOne(uc => uc.User)
+                .WithMany(u => u.UserChatrooms)
+                .HasForeignKey(uc => uc.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserChatroom>()
+                .HasOne(uc => uc.Chatroom)
+                .WithMany(c => c.UserChatrooms)
+                .HasForeignKey(uc => uc.ChatroomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Chatroom)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(m => m.ChatroomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Sender)
+                .WithMany(u => u.SentMessages)
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Recipient)
+                .WithMany(u => u.ReceivedMessages)
+                .HasForeignKey(m => m.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Tweet> Tweets { get; set; } = null!;
-        public DbSet<TwitterUser> Users { get; set; } = null!;
+        public override DbSet<TwitterUser> Users { get; set; } = null!;
         public DbSet<Follow> Follows { get; set; } = null!;
         public DbSet<Like> Likes { get; set; } = null!;
         public DbSet<Retweet> Retweets { get; set; } = null!;
+        public DbSet<ChatRoom> ChatRooms { get; set; } = null!;
+        public DbSet<UserChatroom> UserChatrooms { get; set; } = null!;
+        public DbSet<Message> Messages { get; set; } = null!;
     }
 }

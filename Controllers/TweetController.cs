@@ -7,7 +7,6 @@ using Newtonsoft.Json;
 using TwitterApi.Models;
 using TwitterApi.Database;
 using TwitterApi.DTO;
-using System.Security.Claims;
 
 
 namespace TwitterApi.Controllers
@@ -92,14 +91,23 @@ namespace TwitterApi.Controllers
                             User = new UserDTO
                             {
                                 Id = t.User.Id,
-                                UserName = t.User.UserName,
-                                Email = t.User.Email,
+                                UserName = t.User.UserName ?? string.Empty,
+                                Email = t.User.Email ?? string.Empty,
                                 FullName = t.User.FullName
                             }
                         }).ToList(),
                     });
                 } else {
                     var tweets = JsonConvert.DeserializeObject<List<Tweet>>(cachedResponse);
+                    if (tweets == null)
+                    {
+                        return NotFound(new ResponseDTO<List<Tweet>>
+                        {
+                            Message = "No tweets found",
+                            Count = 0,
+                            Tweets = []
+                        });
+                    }
                     return Ok(new ResponseDTO<List<Tweet>>
                     {
                         Message = "Tweets retrieved successfully",
@@ -112,8 +120,8 @@ namespace TwitterApi.Controllers
                             User = new UserDTO
                             {
                                 Id = t.User.Id,
-                                UserName = t.User.UserName,
-                                Email = t.User.Email,
+                                UserName = t.User.UserName ?? string.Empty,
+                                Email = t.User.Email ?? string.Empty,
                                 FullName = t.User.FullName
                             }
                         }).ToList(),
@@ -127,7 +135,7 @@ namespace TwitterApi.Controllers
                 {
                     Message = "An error occurred while retrieving tweets",
                     Count = 0,
-                    Tweets = new List<TweetDTO>()
+                    Tweets = []
                 });
             }
         }
@@ -151,8 +159,8 @@ namespace TwitterApi.Controllers
                         Content = t.Content,
                         User = new UserDTO {
                             Id = t.User.Id,
-                            UserName = t.User.UserName,
-                            Email = t.User.Email,
+                            UserName = t.User.UserName ?? string.Empty,
+                            Email = t.User.Email ?? string.Empty,
                             FullName = t.User.FullName                        
                         },
                         CreatedAt = t.CreatedAt
@@ -172,7 +180,9 @@ namespace TwitterApi.Controllers
                 var tweet = await _context.Tweets
                     .Include(t => t.User)
                     .FirstOrDefaultAsync(t => t.Id == id);
-                if (tweet == null) {
+                if (tweet == null || tweet.User == null 
+                    || tweet.User.UserName == null 
+                    || tweet.User.Email == null) {
                     return NotFound();
                 }
                 return Ok(new ResponseDTO<Tweet> {
@@ -208,6 +218,10 @@ namespace TwitterApi.Controllers
 
                 if (ModelState.IsValid)
                 {
+                    if (User.Identity == null || User.Identity.Name == null)
+                    {
+                        return Unauthorized();
+                    }
                     var user = await _userManager.FindByNameAsync(User.Identity.Name);
 
                     if (user == null)
