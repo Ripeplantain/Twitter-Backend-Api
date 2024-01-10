@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Swagger;
 using System.Text;
 using System.Text.Json.Serialization;
 using TwitterApi.Database;
 using TwitterApi.Models;
+using TwitterApi.Service;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,6 +92,8 @@ builder.Services.AddStackExchangeRedisCache(options => {
     options.InstanceName = "master";
 });
 
+builder.Services.AddSignalR();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(
@@ -124,6 +126,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/chatHub");
 
 
 app.MapGet("/error", () => Results.Problem());

@@ -36,7 +36,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets(
+        public async Task<ActionResult<ResponseDTO>> GetTweets(
             [FromQuery] int pageIndex = 0,
             [FromQuery] int pageSize = 25,
             CancellationToken cancellationToken = default
@@ -57,11 +57,11 @@ namespace TwitterApi.Controllers
 
                     if (tweets.Count == 0)
                     {
-                        return NotFound(new ResponseDTO<List<Tweet>>
+                        return NotFound(new ResponseDTO
                         {
                             Message = "No tweets found",
                             Count = 0,
-                            Tweets = new List<TweetDTO>()
+                            Tweets = []
                         });
                     }
                     var settings = new JsonSerializerSettings
@@ -79,7 +79,7 @@ namespace TwitterApi.Controllers
                         cancellationToken
                     );
 
-                    return Ok(new ResponseDTO<List<Tweet>>
+                    return Ok(new ResponseDTO
                     {
                         Message = "Tweets retrieved successfully",
                         Count = tweets.Count,
@@ -101,14 +101,14 @@ namespace TwitterApi.Controllers
                     var tweets = JsonConvert.DeserializeObject<List<Tweet>>(cachedResponse);
                     if (tweets == null)
                     {
-                        return NotFound(new ResponseDTO<List<Tweet>>
+                        return NotFound(new ResponseDTO
                         {
                             Message = "No tweets found",
                             Count = 0,
                             Tweets = []
                         });
                     }
-                    return Ok(new ResponseDTO<List<Tweet>>
+                    return Ok(new ResponseDTO
                     {
                         Message = "Tweets retrieved successfully",
                         Count = tweets.Count,
@@ -131,7 +131,7 @@ namespace TwitterApi.Controllers
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occurred while processing the request");
-                return StatusCode(500, new ResponseDTO<List<Tweet>>
+                return StatusCode(500, new ResponseDTO
                 {
                     Message = "An error occurred while retrieving tweets",
                     Count = 0,
@@ -142,7 +142,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet("{username}/tweets")]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetUserTweets(string username)
+        public async Task<ActionResult<ResponseDTO>> GetUserTweets(string username)
         {
             try {
                 var user = await _context.Users
@@ -151,7 +151,7 @@ namespace TwitterApi.Controllers
                 if (user == null) {
                     return NotFound();
                 }
-                return Ok(new ResponseDTO<List<Tweet>> {
+                return Ok(new ResponseDTO {
                     Message = "Tweets retrieved successfully",
                     Count = user.Tweets.Count,
                     Tweets = user.Tweets.Select(t => new TweetDTO {
@@ -174,7 +174,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet("{id}")]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<ActionResult<ResponseDTO<Tweet>>> GetTweet(int id)
+        public async Task<ActionResult<ResponseDTO>> GetTweet(int id)
         {
             try {
                 var tweet = await _context.Tweets
@@ -185,7 +185,7 @@ namespace TwitterApi.Controllers
                     || tweet.User.Email == null) {
                     return NotFound();
                 }
-                return Ok(new ResponseDTO<Tweet> {
+                return Ok(new ResponseDTO {
                     Message = "Tweet retrieved successfully",
                     Count = 1,
                     Tweets = new List<TweetDTO> {

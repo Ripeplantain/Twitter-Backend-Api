@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
 
-
 namespace TwitterApi.DTO
 {
     public class FollowRequestDTO
