@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using TwitterApi.Models;
 using TwitterApi.Database;
 using TwitterApi.DTO;
+using TwitterApi.Services;
 
 
 namespace TwitterApi.Controllers
@@ -17,15 +18,19 @@ namespace TwitterApi.Controllers
         private readonly UserManager<TwitterUser> _userManager;
         private readonly ILogger<SocialController> _logger;
         private readonly DataContext _context;
+        private readonly NotificationService? _notificationService;
 
         public SocialController(
             UserManager<TwitterUser> userManager, 
             ILogger<SocialController> logger,
-            DataContext context)
+            DataContext context,
+            NotificationService notificationService
+        )
         {
             _userManager = userManager;
             _logger = logger;
             _context = context;
+            _notificationService = notificationService;
         }
 
         [HttpPost]
@@ -71,6 +76,13 @@ namespace TwitterApi.Controllers
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                if (userToFollow.UserName != null && user.UserName != null)
+                {
+                    string message = $"{user.UserName} followed you";
+                    _notificationService?.Notify(userToFollow.Id, user.UserName, message);
+                }
+
                 return StatusCode(201, new 
                 {
                     Message = $"{userToFollow.UserName} followed successfully"
@@ -177,6 +189,13 @@ namespace TwitterApi.Controllers
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                if (tweet.UserId != null && user.UserName != null)
+                {
+                    string message = $"{user.UserName} liked your tweet";
+                    _notificationService?.Notify(tweet.UserId, user.UserName, message);
+                }
+
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet liked successfully"
@@ -235,6 +254,13 @@ namespace TwitterApi.Controllers
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                if (tweet.UserId != null && user.UserName != null)
+                {
+                    string message = $"{user.UserName} retweeted your tweet";
+                    _notificationService?.Notify(tweet.UserId, user.UserName, message);
+                }
+
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet retweeted successfully"

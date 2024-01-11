@@ -93,6 +93,12 @@ namespace TwitterApi.Database
                 .WithMany(u => u.ReceivedMessages)
                 .HasForeignKey(m => m.RecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Tweet> Tweets { get; set; } = null!;
@@ -103,5 +109,6 @@ namespace TwitterApi.Database
         public DbSet<ChatRoom> ChatRooms { get; set; } = null!;
         public DbSet<UserChatroom> UserChatrooms { get; set; } = null!;
         public DbSet<Message> Messages { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
     }
 }

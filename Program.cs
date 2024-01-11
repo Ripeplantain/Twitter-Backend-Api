@@ -4,11 +4,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Swagger;
 using System.Text;
 using System.Text.Json.Serialization;
 using TwitterApi.Database;
 using TwitterApi.Models;
+using TwitterApi.Infrastructure;
+using TwitterApi.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,6 +84,9 @@ builder.Services.AddAuthentication(x => {
     };
 });
 
+builder.Services.AddSignalR();
+
+builder.Services.AddScoped<NotificationService>();
 
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -124,6 +128,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<SignalServer>("/websocket");
 
 
 app.MapGet("/error", () => Results.Problem());

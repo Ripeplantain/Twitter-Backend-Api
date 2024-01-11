@@ -34,5 +34,7 @@ namespace TwitterApi.Models
         public ICollection<Message> SentMessages { get; set; } = null!;
         [JsonIgnore]
         public ICollection<Message> ReceivedMessages { get; set; } = null!;
+        [JsonIgnore]
+        public ICollection<Notification> Notifications { get; set; } = null!;
     }
 }
