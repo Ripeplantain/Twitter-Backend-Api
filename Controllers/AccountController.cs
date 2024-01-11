@@ -166,7 +166,7 @@ namespace TwitterApi.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetUsers(string? filterQuery = null)
+        public async Task<IActionResult> GetUsers([FromQuery] string? filterQuery = null)
         {
             try {
                 var authenticatedUser = await _userManager.FindByNameAsync(User?.Identity?.Name ?? string.Empty);
