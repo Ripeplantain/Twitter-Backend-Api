@@ -16,20 +16,12 @@ namespace TwitterApi.Controllers
 {
     [Route("[controller]/[action]")]
     [ApiController]
-    public class AccountController : ControllerBase
+    public class AccountController(DataContext context, ILogger<AccountController> logger, IConfiguration configuration, UserManager<TwitterUser> userManager) : ControllerBase
     {
-        private readonly DataContext _context;
-        private readonly ILogger<AccountController> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly UserManager<TwitterUser> _userManager;
-
-        public AccountController(DataContext context, ILogger<AccountController> logger, IConfiguration configuration, UserManager<TwitterUser> userManager, SignInManager<TwitterUser> signInManager)
-        {
-            _context = context;
-            _logger = logger;
-            _configuration = configuration;
-            _userManager = userManager;
-        }
+        private readonly DataContext _context = context;
+        private readonly ILogger<AccountController> _logger = logger;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly UserManager<TwitterUser> _userManager = userManager;
 
         [HttpPost]
         [ResponseCache(CacheProfileName = "NoCache")]
@@ -254,14 +246,33 @@ namespace TwitterApi.Controllers
         public async Task<IActionResult> GetAuthenticatedUser()
         {
             try {
-                var authenticatedUser = await _userManager.FindByNameAsync(User?.Identity?.Name ?? string.Empty);
+                string username = User?.Identity?.Name ?? string.Empty;
+                var authenticatedUser = await _context.Users
+                    .Include(u => u.Tweets)
+                    .FirstOrDefaultAsync(u => u.UserName == username);
                 if (authenticatedUser != null)
                 {
                     return StatusCode(200,
                         new
                         {
                             message = "User has been retrieved successfully.",
-                            user = authenticatedUser
+                            user = new UserResponseDTO
+                            {
+                                User = {
+                                    Id = authenticatedUser.Id,
+                                    FullName = authenticatedUser.FullName,
+                                    Email = authenticatedUser.Email ?? string.Empty,
+                                    UserName = authenticatedUser.UserName ?? string.Empty,
+                                    Bio = authenticatedUser.Bio,
+                                    Location = authenticatedUser.Location,
+                                    IsVerified = authenticatedUser.IsVerified,
+                                    FollowersCount = authenticatedUser.FollowersCount,
+                                    FollowingCount = authenticatedUser.FollowingCount,
+                                    TweetsCount = authenticatedUser.TweetsCount,
+                                    
+                                },
+                                Tweets = authenticatedUser.Tweets,
+                            }
                         }
                     );
                 }

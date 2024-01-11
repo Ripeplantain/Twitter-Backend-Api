@@ -14,25 +14,17 @@ namespace TwitterApi.Controllers
     [Route("[controller]/[action]")]
     [Authorize]
     [ApiController]
-    public class TweetController: ControllerBase
+    public class TweetController(
+        DataContext context,
+        ILogger<TweetController> logger,
+        UserManager<TwitterUser> userManager,
+        IDistributedCache cache
+        ) : ControllerBase
     {
-        private readonly DataContext _context;
-        private readonly ILogger<TweetController> _logger;
-        private readonly UserManager<TwitterUser> _userManager;
-        private readonly IDistributedCache _cache;
-
-        public TweetController(
-            DataContext context, 
-            ILogger<TweetController> logger, 
-            UserManager<TwitterUser> userManager,
-            IDistributedCache cache
-        )
-        {
-            _context = context;
-            _logger = logger;
-            _userManager = userManager;
-            _cache = cache;
-        }
+        private readonly DataContext _context = context;
+        private readonly ILogger<TweetController> _logger = logger;
+        private readonly UserManager<TwitterUser> _userManager = userManager;
+        private readonly IDistributedCache _cache = cache;
 
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
@@ -61,7 +53,7 @@ namespace TwitterApi.Controllers
                         {
                             Message = "No tweets found",
                             Count = 0,
-                            Tweets = new List<TweetDTO>()
+                            Tweets = []
                         });
                     }
                     var settings = new JsonSerializerSettings
@@ -188,7 +180,7 @@ namespace TwitterApi.Controllers
                 return Ok(new ResponseDTO<Tweet> {
                     Message = "Tweet retrieved successfully",
                     Count = 1,
-                    Tweets = new List<TweetDTO> {
+                    Tweets = [
                         new TweetDTO {
                             Id = tweet.Id,
                             Content = tweet.Content,
@@ -200,7 +192,7 @@ namespace TwitterApi.Controllers
                             },
                             CreatedAt = tweet.CreatedAt
                         }
-                    },
+                    ],
                 });
             } catch (Exception e) {
                 _logger.LogError(e.Message);
