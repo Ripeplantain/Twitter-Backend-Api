@@ -166,18 +166,18 @@ namespace TwitterApi.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetUsers([FromQuery] string? filterQuery = null)
+        public async Task<IActionResult> GetUsers([FromQuery] string? search = null)
         {
             try {
                 var authenticatedUser = await _userManager.FindByNameAsync(User?.Identity?.Name ?? string.Empty);
                 if (authenticatedUser != null)
                 {
                     var users = _context.Users.Where(u => u.Id != authenticatedUser.Id).AsQueryable();
-                    if (filterQuery != null)
+                    if (search != null)
                     {
                         users = users.Where(u => u != null && 
-                            ((u.UserName != null && u.UserName.Contains(filterQuery)) || 
-                            (u.FullName != null && u.FullName.Contains(filterQuery))));
+                            ((u.UserName != null && u.UserName.Contains(search)) || 
+                            (u.FullName != null && u.FullName.Contains(search))));
                     }
                     users = users.OrderByDescending(u => u.FollowersCount);
                     return StatusCode(200,
