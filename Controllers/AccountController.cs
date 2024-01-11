@@ -3,14 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using TwitterApi.DTO;
 using TwitterApi.Models;
 using TwitterApi.Database;
-using System.Linq.Expressions;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Diagnostics;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 
 
@@ -24,7 +22,6 @@ namespace TwitterApi.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly IConfiguration _configuration;
         private readonly UserManager<TwitterUser> _userManager;
-        private readonly SignInManager<TwitterUser> _signInManager;
 
         public AccountController(DataContext context, ILogger<AccountController> logger, IConfiguration configuration, UserManager<TwitterUser> userManager, SignInManager<TwitterUser> signInManager)
         {
@@ -32,7 +29,6 @@ namespace TwitterApi.Controllers
             _logger = logger;
             _configuration = configuration;
             _userManager = userManager;
-            _signInManager = signInManager;
         }
 
         [HttpPost]
@@ -162,6 +158,129 @@ namespace TwitterApi.Controllers
                     new
                     {
                         message = "User has failed to login.",
+                        errors = e.Message
+                    }
+                );
+            }
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetUsers(string? filterQuery = null)
+        {
+            try {
+                var authenticatedUser = await _userManager.FindByNameAsync(User?.Identity?.Name ?? string.Empty);
+                if (authenticatedUser != null)
+                {
+                    var users = _context.Users.Where(u => u.Id != authenticatedUser.Id).AsQueryable();
+                    if (filterQuery != null)
+                    {
+                        users = users.Where(u => u != null && 
+                            ((u.UserName != null && u.UserName.Contains(filterQuery)) || 
+                            (u.FullName != null && u.FullName.Contains(filterQuery))));
+                    }
+                    users = users.OrderByDescending(u => u.FollowersCount);
+                    return StatusCode(200,
+                        new
+                        {
+                            message = "Users have been retrieved successfully.",
+                            count = users.Count(),
+                            users = await users.ToListAsync()
+                        }
+                    );
+                }
+                else
+                {
+                    return StatusCode(401,
+                        new
+                        {
+                            message = "User authentication failed.",
+                            errors = "Invalid user."
+                        }
+                    );
+                }
+            } catch (Exception e)
+            {
+                return StatusCode(500,
+                    new
+                    {
+                        message = "Users have failed to be retrieved.",
+                        errors = e.Message
+                    }
+                );
+            }
+        }
+
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetUser(string id)
+        {
+            try {
+                var user = await _context.Users.FindAsync(id);
+                if (user != null)
+                {
+                    return StatusCode(200,
+                        new
+                        {
+                            message = "User has been retrieved successfully.",
+                            user
+                        }
+                    );
+                }
+                else
+                {
+                    return StatusCode(404,
+                        new
+                        {
+                            message = "User has failed to be retrieved.",
+                            errors = "Invalid user."
+                        }
+                    );
+                }
+            } catch (Exception e)
+            {
+                return StatusCode(500,
+                    new
+                    {
+                        message = "User has failed to be retrieved.",
+                        errors = e.Message
+                    }
+                );
+            }
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetAuthenticatedUser()
+        {
+            try {
+                var authenticatedUser = await _userManager.FindByNameAsync(User?.Identity?.Name ?? string.Empty);
+                if (authenticatedUser != null)
+                {
+                    return StatusCode(200,
+                        new
+                        {
+                            message = "User has been retrieved successfully.",
+                            user = authenticatedUser
+                        }
+                    );
+                }
+                else
+                {
+                    return StatusCode(401,
+                        new
+                        {
+                            message = "User authentication failed.",
+                            errors = "Invalid user."
+                        }
+                    );
+                }
+            } catch (Exception e)
+            {
+                return StatusCode(500,
+                    new
+                    {
+                        message = "User has failed to be retrieved.",
                         errors = e.Message
                     }
                 );
