@@ -56,6 +56,7 @@ namespace TwitterApi.Controllers
 
             try {
                 await _socialService.FollowUserAsync(user, userToFollow);
+                _notificationService.Notify(userToFollow.Id, "follow", $"{user.UserName} followed you");
                 return StatusCode(201, new 
                 {
                     Message = $"{userToFollow.UserName} followed successfully"
@@ -137,6 +138,7 @@ namespace TwitterApi.Controllers
 
             try {
                 await _socialService.LikeTweetAsync(user, input, tweet);
+                _notificationService.Notify(tweet.UserId, "like", $"{user.UserName} liked your tweet");
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet liked successfully"
@@ -182,6 +184,7 @@ namespace TwitterApi.Controllers
 
             try {
                 await _socialService.RetweetAsync(user, input, tweet);
+                _notificationService.Notify(tweet.UserId, "retweet", $"{user.UserName} retweeted your tweet");
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet retweeted successfully"
