@@ -9,13 +9,16 @@ using System.Text.Json.Serialization;
 using TwitterApi.Database;
 using TwitterApi.Models;
 using TwitterApi.Infrastructure;
-using TwitterApi.Services;
+using TwitterApi.Services.NotificationService;
+using TwitterApi.Services.TweetService;
+using TwitterApi.Services.SocialService;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
+
 
 builder.Services.AddSwaggerGen(options => {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -40,7 +43,7 @@ builder.Services.AddSwaggerGen(options => {
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
@@ -56,6 +59,7 @@ builder.Services.AddMvc(options => {
     });
 });
 
+// Authentication
 builder.Services.AddIdentity<TwitterUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -86,16 +90,22 @@ builder.Services.AddAuthentication(x => {
 
 builder.Services.AddSignalR();
 
-builder.Services.AddScoped<NotificationService>();
+//Register services
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ITweetService, TweetService>();
+builder.Services.AddScoped<ISocialService, SocialService>();
 
+// Database connection
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Redis connection
 builder.Services.AddStackExchangeRedisCache(options => {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "master";
 });
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(
@@ -135,3 +145,5 @@ app.MapGet("/error", () => Results.Problem());
 
 app.Run();
 
+
+public partial class Program {}

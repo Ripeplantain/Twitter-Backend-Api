@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using TwitterApi.Models;
-using TwitterApi.Database;
 using TwitterApi.DTO;
-using TwitterApi.Services;
+using TwitterApi.Services.NotificationService;
+using TwitterApi.Services.SocialService;
+using TwitterApi.Database;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace TwitterApi.Controllers
@@ -13,86 +14,54 @@ namespace TwitterApi.Controllers
     [Route("[controller]/[action]")]
     [ApiController]
     [Authorize]
-    public class SocialController : ControllerBase
+    public class SocialController(
+        ISocialService socialService,
+        INotificationService notificationService,
+        UserManager<TwitterUser> userManager,
+        ILogger<SocialController> logger,
+        DataContext context
+        ) : ControllerBase
     {
-        private readonly UserManager<TwitterUser> _userManager;
-        private readonly ILogger<SocialController> _logger;
-        private readonly DataContext _context;
-        private readonly NotificationService? _notificationService;
-
-        public SocialController(
-            UserManager<TwitterUser> userManager, 
-            ILogger<SocialController> logger,
-            DataContext context,
-            NotificationService notificationService
-        )
-        {
-            _userManager = userManager;
-            _logger = logger;
-            _context = context;
-            _notificationService = notificationService;
-        }
+        private readonly ISocialService _socialService = socialService;
+        private readonly INotificationService _notificationService = notificationService;
+        private readonly UserManager<TwitterUser> _userManager = userManager;
+        private readonly ILogger<SocialController> _logger = logger;
+        private readonly DataContext _context = context;
 
         [HttpPost]
         public async Task<IActionResult> FollowUser(FollowRequestDTO input)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try 
+            if (User.Identity == null || User.Identity.Name == null)
             {
-                if (User.Identity == null || User.Identity.Name == null)
+                return Unauthorized();
+            }
+
+            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            var userToFollow = await _userManager.FindByIdAsync(input.userId);
+
+            if (user == null || userToFollow == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var existing = await _context.Follows
+                .FirstOrDefaultAsync(f => f.FollowerId == user.Id && f.FollowingId == userToFollow.Id);
+            if (existing != null)
+            {
+                return StatusCode(400, new 
                 {
-                    return Unauthorized();
-                }
-                var user = await _userManager.FindByNameAsync(User.Identity.Name);
-                var userToFollow = await _userManager.FindByIdAsync(input.userId);
+                    Message = "Already following user"
+                });
+            }
 
-                if (user == null || userToFollow == null)
-                {
-                    return NotFound();
-                }
-
-                var existingFollow = await _context.Follows
-                    .FirstOrDefaultAsync(f => f.FollowerId == user.Id && f.FollowingId == userToFollow.Id);
-
-                if (existingFollow != null)
-                {
-                    return BadRequest("Already following user");
-                }
-
-                var newFollow = new Follow
-                {
-                    FollowerId = user.Id,
-                    FollowingId = userToFollow.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    Follower = user,
-                    Following = userToFollow
-                };
-
-                await _context.Follows.AddAsync(newFollow);
-                await _context.SaveChangesAsync();
-
-                user.FollowingCount++;
-                userToFollow.FollowersCount++;
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-
-                if (userToFollow.UserName != null && user.UserName != null)
-                {
-                    string message = $"{user.UserName} followed you";
-                    _notificationService?.Notify(userToFollow.Id, user.UserName, message);
-                }
-
+            try {
+                await _socialService.FollowUserAsync(user, userToFollow);
                 return StatusCode(201, new 
                 {
                     Message = $"{userToFollow.UserName} followed successfully"
                 });
-
-            } 
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error following user");
-                await transaction.RollbackAsync();
+            } catch (Exception e) {
+                _logger.LogError(e, "Error following user");
                 return StatusCode(500, "Error following user");
             }
         }
@@ -101,47 +70,38 @@ namespace TwitterApi.Controllers
         [HttpPost]
         public async Task<IActionResult> UnfollowUser(FollowRequestDTO input)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try 
+            if (User.Identity == null || User.Identity.Name == null)
             {
-                if (User.Identity == null || User.Identity.Name == null)
+                return Unauthorized();
+            }
+
+            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            var userToUnfollow = await _userManager.FindByIdAsync(input.userId);
+
+            if (user == null || userToUnfollow == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var existing = await _context.Follows
+                .FirstOrDefaultAsync(f => f.FollowerId == user.Id && f.FollowingId == userToUnfollow.Id);
+
+            if (existing == null)
+            {
+                return StatusCode(400, new 
                 {
-                    return Unauthorized();
-                }
-                var user = await _userManager.FindByNameAsync(User.Identity.Name);
-                var userToUnfollow = await _userManager.FindByIdAsync(input.userId);
+                    Message = "Not following user"
+                });
+            }
 
-                if (user == null || userToUnfollow == null)
-                {
-                    return NotFound();
-                }
-
-                var existingFollow = await _context.Follows
-                    .FirstOrDefaultAsync(f => f.FollowerId == user.Id && f.FollowingId == userToUnfollow.Id);
-
-                if (existingFollow == null)
-                {
-                    return BadRequest("Not following user");
-                }
-
-                _context.Follows.Remove(existingFollow);
-                await _context.SaveChangesAsync();
-
-                user.FollowingCount--;
-                userToUnfollow.FollowersCount--;
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-                return StatusCode(200, new 
+            try {
+                await _socialService.UnFollowUserAsync(user, userToUnfollow, existing);
+                return StatusCode(201, new 
                 {
                     Message = $"{userToUnfollow.UserName} unfollowed successfully"
                 });
-
-            } 
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error unfollowing user");
-                await transaction.RollbackAsync();
+            } catch (Exception e) {
+                _logger.LogError(e, "Error unfollowing user");
                 return StatusCode(500, "Error unfollowing user");
             }
         }
@@ -149,128 +109,85 @@ namespace TwitterApi.Controllers
         [HttpPost]
         public async Task<IActionResult> LikeTweet(LikeRequestDTO input)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try 
+            if (User.Identity == null || User.Identity.Name == null)
             {
-                if (User.Identity == null || User.Identity.Name == null)
+                return Unauthorized();
+            }
+
+            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var tweet = await _context.Tweets.FirstOrDefaultAsync(t => t.Id == input.tweetId);
+            if (tweet == null)
+            {
+                return NotFound("Tweet not found");
+            }
+
+            var existing = await _context.Likes.FirstOrDefaultAsync(l => l.UserId == user.Id && l.TweetId == tweet.Id);
+            if (existing != null)
+            {
+                return StatusCode(400, new 
                 {
-                    return Unauthorized();
-                }
-                var user = await _userManager.FindByNameAsync(User.Identity.Name);
-                var tweet = await _context.Tweets
-                    .FirstOrDefaultAsync(t => t.Id == input.tweetId);
+                    Message = "Already liked tweet"
+                });
+            }
 
-                if (user == null || tweet == null)
-                {
-                    return NotFound();
-                }
-
-                var existingLike = await _context.Likes
-                    .FirstOrDefaultAsync(l => l.TweetId == tweet.Id && l.UserId == user.Id);
-
-                if (existingLike != null)
-                {
-                    return BadRequest("Already liked tweet");
-                }
-
-                var newLike = new Like
-                {
-                    TweetId = tweet.Id,
-                    UserId = user.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    Tweet = tweet,
-                    User = user
-                };
-
-                await _context.Likes.AddAsync(newLike);
-                await _context.SaveChangesAsync();
-
-                tweet.LikesCount++;
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-
-                if (tweet.UserId != null && user.UserName != null)
-                {
-                    string message = $"{user.UserName} liked your tweet";
-                    _notificationService?.Notify(tweet.UserId, user.UserName, message);
-                }
-
+            try {
+                await _socialService.LikeTweetAsync(user, input, tweet);
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet liked successfully"
                 });
-
-            } 
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error liking tweet");
-                await transaction.RollbackAsync();
+            } catch (Exception e) {
+                _logger.LogError(e, "Error liking tweet");
                 return StatusCode(500, "Error liking tweet");
             }
+
         }
 
         [HttpPost]
         public async Task<IActionResult> Retweet(RetweetRequestDTO input)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try 
+            if (User.Identity == null || User.Identity.Name == null)
             {
-                if (User.Identity == null || User.Identity.Name == null)
+                return Unauthorized();
+            }
+
+            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var tweet = await _context.Tweets
+                .FirstOrDefaultAsync(t => t.Id == input.tweetId);
+
+            if (tweet == null)
+            {
+                return NotFound("Tweet not found");
+            }
+        
+            var existing = await _context.Retweets
+                .FirstOrDefaultAsync(r => r.RetweeterId == user.Id && r.TweetId == tweet.Id);
+            if (existing != null)
+            {
+                return StatusCode(400, new 
                 {
-                    return Unauthorized();
-                }
-                var user = await _userManager.FindByNameAsync(User.Identity.Name);
-                var tweet = await _context.Tweets
-                    .FirstOrDefaultAsync(t => t.Id == input.tweetId);
+                    Message = "Already retweeted tweet"
+                });
+            }
 
-                if (user == null || tweet == null)
-                {
-                    return NotFound();
-                }
-
-                var existingRetweet = await _context.Retweets
-                    .FirstOrDefaultAsync(r => r.TweetId == tweet.Id && r.RetweeterId == user.Id);
-
-                if (existingRetweet != null)
-                {
-                    return BadRequest("Already retweeted tweet");
-                }
-
-                var newRetweet = new Retweet
-                {
-                    TweetId = tweet.Id,
-                    Caption = input.caption,
-                    RetweeterId = user.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    Tweet = tweet,
-                    Retweeter = user
-                };
-
-                await _context.Retweets.AddAsync(newRetweet);
-                await _context.SaveChangesAsync();
-
-                tweet.RetweetsCount++;
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-
-                if (tweet.UserId != null && user.UserName != null)
-                {
-                    string message = $"{user.UserName} retweeted your tweet";
-                    _notificationService?.Notify(tweet.UserId, user.UserName, message);
-                }
-
+            try {
+                await _socialService.RetweetAsync(user, input, tweet);
                 return StatusCode(201, new 
                 {
                     Message = $"Tweet retweeted successfully"
                 });
-
-            } 
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retweeting tweet");
-                await transaction.RollbackAsync();
+            } catch (Exception e) {
+                _logger.LogError(e, "Error retweeting tweet");
                 return StatusCode(500, "Error retweeting tweet");
             }
         }

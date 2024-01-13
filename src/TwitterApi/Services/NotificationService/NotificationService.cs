@@ -5,9 +5,11 @@ using TwitterApi.Models;
 using Microsoft.EntityFrameworkCore;
 
 
-namespace TwitterApi.Services
+namespace TwitterApi.Services.NotificationService
 {
-    public class NotificationService(IHubContext<SignalServer> hubContext, DataContext dataContext)
+    public class NotificationService(
+        IHubContext<SignalServer> hubContext, DataContext dataContext
+        ) : INotificationService
     {
         private readonly IHubContext<SignalServer> _hubContext = hubContext;
         private readonly DataContext _dataContext = dataContext;
