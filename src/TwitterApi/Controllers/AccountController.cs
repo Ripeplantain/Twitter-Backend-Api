@@ -49,7 +49,7 @@ namespace TwitterApi.Controllers
                             $"User {input.username} has been registered successfully."
 
                         );
-                        await _userManager.AddToRoleAsync(newUser, "User");
+                        // await _userManager.AddToRoleAsync(newUser, "User");
                         return StatusCode(201,
                             new
                             {
@@ -295,6 +295,46 @@ namespace TwitterApi.Controllers
                         errors = e.Message
                     }
                 );
+            }
+        }
+
+        [HttpDelete("{username}")]
+        public async Task<IActionResult> DeleteUser(string username)
+        {
+            try {
+                var userToDelete = await _context.Users.Where(u => u.UserName == username).FirstOrDefaultAsync();
+                if (userToDelete != null)
+                {
+                    _context.Users.Remove(userToDelete);
+                    await _context.SaveChangesAsync();
+                    return StatusCode(200,
+                        new
+                        {
+                            message = "User has been deleted successfully.",
+                            user = userToDelete
+                        }
+                    );
+                }
+                else
+                {
+                    return StatusCode(404,
+                        new
+                        {
+                            message = "User has failed to be deleted.",
+                            errors = "Invalid user."
+                        }
+                    );
+                }
+            } catch (Exception e)
+            {
+                return StatusCode(500,
+                    new
+                    {
+                        message = "User has failed to be deleted.",
+                        errors = e.Message
+                    }
+                );
+
             }
         }
     }

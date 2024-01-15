@@ -88,6 +88,7 @@ builder.Services.AddAuthentication(x => {
     };
 });
 
+// SignalR
 builder.Services.AddSignalR();
 
 //Register services
