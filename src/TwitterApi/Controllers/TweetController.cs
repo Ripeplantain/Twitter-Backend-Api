@@ -21,6 +21,7 @@ namespace TwitterApi.Controllers
         private readonly UserManager<TwitterUser> _userManager = userManager;
         private readonly ITweetService _tweetService = tweetService;
 
+
         [HttpGet]
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<ActionResult<ResponseDTO<List<Tweet>>>> GetTweets(
